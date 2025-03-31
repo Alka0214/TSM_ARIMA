@@ -1,0 +1,78 @@
+---
+title: "ARIMA Practice"
+author: "ad1660@scarletmail.rutgers.edu"
+date: "04/04/2025"
+output: html_document
+---
+  
+```{r}
+#Perform ARIMA on your time series. 1. Explain the output 2. Run Residual Analysis 3. Perform and Plot the forecast for the next five periods 4. Show the accuracy of your ARIMA model
+
+library(fpp)
+library(fpp2)
+library(forecast)
+
+
+
+#Import CSV File. If you have an Excel file, save it as a CSV
+JTUJOL<-read.csv("/Users/alinadiduk/Documents/Documents\ -\ Alina’s\ MacBook\ Pro/Time\ Series\ Modeling/JTUJOL.csv",header = TRUE)
+
+#edited the data due to one of the columns not being recognized.
+JTUJOL$Obs_Date <- as.Date(JTUJOL$Obs_Date, format = "%m/%d/%y")
+#transfromed the data into time series
+job_open_ts <- ts(JTUJOL$Job_Open, start = c(2014, 12), frequency = 12)  
+plot(job_open_ts)
+
+job_open_ts_cut <- window(job_open_ts, start = c(2020, 1))
+plot(job_open_ts_cut)
+#Cut the ts bc of the noice and the COVID effect, menaing the previous data is not accurate anymore.
+
+# Seasonal Data NEED to split the graph and do the steps on seasonal and none seasonal component
+#for seasonal ALWAYS DO IT FIRST,after checking my ts it can be seen as predicted there is no seasonality since the command gives back 0 differencing, meaning there is no need to perform split on my ts. 
+nsdiffs(job_open_ts_cut)
+#1. Perform the differencing on the ts, give off 1 as number of differencing to be performed for the ts to become stationary.
+ndiffs(job_open_ts_cut)
+
+#Displays the components that the ARIMA model takes in considerations. We can see the acf is slowly decaying autocorrelation, no pattern spikes meaning no seasonality, and the ts is not stationary yet. PACF shows random values, no significant spikes.
+tsdisplay(job_open_ts_cut)
+
+#After differencing ones time as was needed for the data to become stationary.
+job_diff1 <- diff(job_open_ts_cut, differences=1)
+
+
+#To use ARIMA and run bunch of models and pick the right one. The right and most cheap model is (3,1,0), 3 autocorrelated lags,1 differencing step, 0 no moving average
+auto_fit_j <- auto.arima(job_open_ts_cut, trace=TRUE, stepwise = FALSE)
+auto_fit_j
+#sigma^2 = 428477 or 654.58 which is the approximate variance of the residuals (errors) or how much "unexplained noise" remains after your model fits the time series.
+
+attributes(auto_fit_j)
+#arima model and the ts in one graph, displays good acuraccy at least visually. 
+plot(job_open_ts_cut)
+lines(auto_fit_j$fitted, col="red")
+
+#2.Residual Analysis
+Acf(auto_fit_j$residuals)
+#acf should be random and it is, shows only 1 significant spike and overall no patterns.The residuals plot have no patterns, and is centered around 0.
+plot.ts(residuals(auto_fit_j))
+#Normal distribution(bell shape is present), slightly left-skewed meaning the model may be underpredicting.
+hist(auto_fit_j$residuals)
+Box.test(residuals(auto_fit_j), lag=20, type="Ljung")
+#overall just dsplays the residuals analysis which perfectly confirms no pattern. 
+tsdiag(auto_fit_j)
+
+
+#3.perform forecast and plot
+
+#the plot for next 5 months(since my ts is monthly, so 5 periods is months for my ts) displays slight bounce up suggesting the inc in job openings. The overall expectation for the forecast is reasonable. 
+plot(forecast(auto_fit_j,h=5,level=c(99.5)))
+forecast(auto_fit_j)
+
+#4. Accuracy for ARIMA model for my ts the most important measures for the real life ts such as mine would be MAPE, MASE, and ACF1. MAPE = 5.77 which is really low indicating average error of actual values, MASE of 0.23 is less than 1 indicating that the ARIMA model is more accurate than the naive. And ACF1= 0.06 which means residuals are random(good sign)
+accuracy(forecast(auto_fit_j))
+
+
+
+```
+
+  
+  
